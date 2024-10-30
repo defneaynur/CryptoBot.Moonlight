@@ -1,29 +1,40 @@
 ﻿using Binance.Net.Clients;
+using CryptoBot.Moonlight.Library.Models.Request;
 using CryptoExchange.Net.Authentication;
+using System;
 
 public static class CryptoSignalService
 {
-    public static async Task<decimal> GetBitcoinPrice()
+    private static readonly BinanceRestClient binanceClient;
+
+    // Static constructor for initializing Binance client
+    static CryptoSignalService()
     {
-        var apiCredentials = new ApiCredentials("vmPUZE6mv9SD5VNHk4HlWFsOr6aKE2zvsw0MuIgwCIPy6utIco14y7Ju91duEh8A",
-                                                "NhqPtmdSJYdKjVHjA7PZj4Mge3R5YNiP1e3UZjInClVN65XAbvqqM6A7H5fATj0j");
+        binanceClient = new BinanceRestClient();
+    }
 
-
-        using var binanceClient = new BinanceRestClient(options =>
+    /// <summary>
+    /// Gets the price of the specified cryptocurrency.
+    /// </summary>
+    /// <param name="coinPrice">The coin symbol request model.</param>
+    /// <returns>The current price of the cryptocurrency.</returns>
+    public static async Task<decimal> GetCoinPriceAsync(CoinPriceRequestModel coinPrice)
+    {
+        if (string.IsNullOrEmpty(coinPrice.CoinSymbol))
         {
-            options.ApiCredentials = apiCredentials;
-        });
-
-        var result = await binanceClient.SpotApi.ExchangeData.GetPriceAsync("BTCUSDT");
-
-
-        if (result.Success)
-        {
-            return result.Data.Price;
+            throw new ArgumentException("Coin symbol cannot be null or empty.", nameof(coinPrice.CoinSymbol));
         }
-        else
+
+        var result = await binanceClient.SpotApi.ExchangeData.GetPriceAsync(coinPrice.CoinSymbol);
+
+        if (!result.Success || result.Data == null)
         {
-            throw new Exception($"API Error: {result.Error.Message}");
+            var errorMessage = result.Error != null
+                ? $"API Error: {result.Error.Message}"
+                : "API returned an unknown error.";
+            throw new Exception(errorMessage);
         }
+
+        return result.Data.Price;
     }
 }
